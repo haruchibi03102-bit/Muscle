@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Muscle Volume Pro - 筋トレボリューム＆1RM管理</title>
+    <!-- 外部CDN: Chart.js (グラフ描画用) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --card-border: #2c2c2c;
+            --text-primary: #f0f0f0;
+            --text-secondary: #a0a0a0;
+            --accent-color: #3b82f6;
+            --accent-hover: #2563eb;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --touch-height: 48px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            padding: 12px;
+            padding-bottom: 80px;
+            line-height: 1.5;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 16px;
+            padding: 12px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--card-border);
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            color: var(--accent-color);
+            margin-bottom: 4px;
+        }
+
+        header p {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        /* タブナビゲーション */
+        .tab-bar {
+            display: flex;
+            background: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--card-border);
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            padding: 12px 4px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
+            min-height: var(--touch-height);
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* カードデザイン */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .card h2 {
+            font-size: 1rem;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* フォーム部品 */
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            height: var(--touch-height);
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 8px;
+            color: var(--text-primary);
+            padding: 0 12px;
+            font-size: 1rem;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        .btn {
+            width: 100%;
+            height: var(--touch-height);
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: background 0.2s;
+            margin-top: 8px;
+        }
+
+        .btn:active {
+            background: var(--accent-hover);
+        }
+
+        .btn-secondary {
+            background: #374151;
+        }
+
+        .btn-danger {
+            background: var(--danger-color);
+        }
+
+        .btn-small {
+            height: 36px;
+            font-size: 0.85rem;
+            padding: 0 12px;
+            width: auto;
+            margin-top: 0;
+        }
+
+        /* リアルタイムインフォ */
+        .info-box {
+            background: #252525;
+            border-left: 4px solid var(--accent-color);
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+        }
+
+        .info-highlight {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--success-color);
+        }
+
+        /* リスト・テーブル */
+        .history-item {
+            background: #252525;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-info div {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .history-info strong {
+            font-size: 1rem;
+            color: var(--text-primary);
+        }
+
+        /* グラフエリア */
+        .chart-container {
+            position: relative;
+            height: 250px;
+            width: 100%;
+            margin-top: 12px;
+        }
+
+        /* ステータスバー */
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1a1a1a;
+            border-top: 1px solid var(--card-border);
+            padding: 8px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            z-index: 100;
+        }
+
+        .badge {
+            background: var(--success-color);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Muscle Volume Pro</h1>
+        <p>Android Optimized Training & 1RM Manager</p>
+    </header>
+
+    <!-- タブメニュー -->
+    <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('input')">記録入力</button>
+        <button class="tab-btn" onclick="switchTab('history')">履歴・編集</button>
+        <button class="tab-btn" onclick="switchTab('analytics')">グラフ分析</button>
+        <button class="tab-btn" onclick="switchTab('settings')">設定・管理</button>
+    </div>
+
+    <!-- TAB 1: 記録入力 -->
+    <div id="tab-input" class="tab-content active">
+        <div class="card">
+            <h2>セットを記録する</h2>
+            
+            <div class="form-group">
+                <label for="workoutDate">日付</label>
+                <input type="date" id="workoutDate">
+            </div>
+
+            <div class="form-group">
+                <label for="exerciseSelect">種目名</label>
+                <select id="exerciseSelect" onchange="onExerciseChange()">
+                    <!-- 動的生成 -->
+                </select>
+            </div>
+
+            <div id="lastRecordInfo" class="info-box" style="display:none;">
+                前回の記録: <span id="lastRecordText">--</span><br>
+                経過日数: <span id="elapsedDaysText" style="color: var(--warning-color);">--</span>
+            </div>
+
+            <div style="display: flex; gap: 12px;">
+                <div class="form-group" style="flex: 1;">
+                    <label for="weightInput">重量 (kg)</label>
+                    <input type="number" id="weightInput" inputmode="decimal" step="0.5" placeholder="0.0" oninput="calculateRealtime()">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label for="repsInput">回数</label>
+                    <input type="number" id="repsInput" inputmode="numeric" placeholder="0" oninput="calculateRealtime()">
+                </div>
+            </div>
+
+            <!-- リアルタイム1RM＆ボリューム表示 -->
+            <div class="info-box">
+                <div>予測 1RM: <span id="realtime1RM" class="info-highlight">0.0 kg</span></div>
+                <div>セットボリューム: <span id="realtimeVolume" style="font-weight: bold;">0.0 kg</span></div>
+            </div>
+
+            <button class="btn" onclick="addSetRecord()">このセットを記録する</button>
+        </div>
+
+        <div class="card">
+            <h2>本日のセッション一覧 (<span id="todayCount">0</span>セット)</h2>
+            <div id="todayList">
+                <p style="color: var(--text-secondary); text-align: center; padding: 12px;">本日の記録はまだありません</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: 履歴・編集 -->
+    <div id="tab-history" class="tab-content">
+        <div class="card">
+            <h2>過去のトレーニング履歴</h2>
+            <div class="form-group">
+                <label for="filterExercise">種目フィルター</label>
+                <select id="filterExercise" onchange="renderHistory()">
+                    <option value="all">すべての種目</option>
+                </select>
+            </div>
+            <div id="historyList">
+                <!-- 動的生成 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 3: グラフ分析 -->
+    <div id="tab-analytics" class="tab-content">
+        <div class="card">
+            <h2>種目別 1RM 推移グラフ</h2>
+            <div class="form-group">
+                <label for="chartExerciseSelect">種目選択</label>
+                <select id="chartExerciseSelect" onchange="updateCharts()">
+                    <!-- 動的生成 -->
+                </select>
+            </div>
+            <div class="chart-container">
+                <canvas id="rmChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>週別 筋ボリューム & 目標</h2>
+            <div class="chart-container">
+                <canvas id="volumeChart"></canvas>
+            </div>
+            <div id="weeklyTargetBox" class="info-box" style="margin-top: 16px;">
+                <strong>次回の現実的なボリューム目標:</strong><br>
+                <span id="targetVolumeText" class="info-highlight">-- kg</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 4: 設定・バックアップ -->
+    <div id="tab-settings" class="tab-content">
+        <div class="card">
+            <h2>種目マスタ管理</h2>
+            <div class="form-group">
+                <label for="newExerciseName">新規種目名を追加</label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="newExerciseName" placeholder="例: インクラインベンチプレス">
+                    <button class="btn btn-small" onclick="addExercise()" style="margin-top:0;">追加</button>
+                </div>
+            </div>
+            <div id="exerciseManagementList" style="margin-top: 12px;">
+                <!-- 動的生成 -->
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>データバックアップ & エクスポート</h2>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">
+                データは自動的にブラウザ内に保護されています。定期的にJSONファイルとして保存、またはエクセル用CSVを出力できます。
+            </p>
+            <button class="btn btn-secondary" onclick="exportJSON()">JSONバックアップを保存 (上書き)</button>
+            <button class="btn btn-secondary" onclick="exportCSV()" style="margin-top: 8px;">Excel用CSVを出力</button>
+            
+            <div class="form-group" style="margin-top: 16px;">
+                <label for="importFile">JSONから復元 (インポート)</label>
+                <input type="file" id="importFile" accept=".json" onchange="importJSON(event)">
+            </div>
+        </div>
+    </div>
+
+    <!-- ステータスバー (永続化＆自動バックアップ状態表示) -->
+    <div class="status-bar">
+        <span>ストレージ保護: <span class="badge" id="storageBadge">Active</span></span>
+        <span id="autoSaveStatus">自動保存完了</span>
+    </div>
+
+    <script>
+        // --- アプリケーション状態 & 初期データ ---
+        const DEFAULT_EXERCISES = [
+            "ベンチプレス",
+            "スクワット",
+            "デッドリフト",
+            "極ナロウ",
+            "スカルクラッシャー",
+            "ショルダープレス",
+            "チンニング"
+        ];
+
+        let state = {
+            exercises: [],
+            records: [], // { id, date, exercise, weight, reps, volume, rm1 }
+            settings: {}
+        };
+
+        let rmChartInstance = null;
+        let volumeChartInstance = null;
+
+        // --- 初期化処理 ---
+        window.addEventListener('DOMContentLoaded', async () => {
+            // 日付初期値に今日をセット
+            document.getElementById('workoutDate').valueAsDate = new Date();
+            
+            await loadFromStorage();
+            initExercises();
+            renderInputPage();
+            renderHistory();
+            updateCharts();
+        });
+
+        // --- ストレージ処理 (IndexedDB / LocalStorage 冗長化) ---
+        async function loadFromStorage() {
+            try {
+                const savedData = localStorage.getItem('muscle_volume_pro_data');
+                if (savedData) {
+                    const parsed = JSON.parse(savedData);
+                    state.exercises = parsed.exercises || DEFAULT_EXERCISES;
+                    state.records = parsed.records || [];
+                } else {
+                    state.exercises = DEFAULT_EXERCISES;
+                    state.records = [];
+                }
+            } catch (e) {
+                console.error("Storage load error:", e);
+                state.exercises = DEFAULT_EXERCISES;
+                state.records = [];
+            }
+        }
+
+        function saveToStorage() {
+            try {
+                localStorage.setItem('muscle_volume_pro_data', JSON.stringify(state));
+                document.getElementById('autoSaveStatus').innerText = "自動保存完了: " + new Date().toLocaleTimeString();
+                document.getElementById('storageBadge').style.background = "var(--success-color)";
+            } catch (e) {
+                console.error("Storage save error:", e);
+                document.getElementById('storageBadge').style.background = "var(--danger-color)";
+                document.getElementById('autoSaveStatus').innerText = "保存失敗エラー";
+            }
+        }
+
+        // --- タブ切り替え ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById('tab-' + tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+
+            if (tabId === 'analytics') {
+                updateCharts();
+            }
+        }
+
+        // --- 種目管理 ---
+        function initExercises() {
+            const exSelect = document.getElementById('exerciseSelect');
+            const filterEx = document.getElementById('filterExercise');
+            const chartEx = document.getElementById('chartExerciseSelect');
+            
+            exSelect.innerHTML = '';
+            filterEx.innerHTML = '<option value="all">すべての種目</option>';
+            chartEx.innerHTML = '';
+
+            state.exercises.forEach(ex => {
+                exSelect.appendChild(new Option(ex, ex));
+                filterEx.appendChild(new Option(ex, ex));
+                chartEx.appendChild(new Option(ex, ex));
+            });
+
+            renderExerciseManagement();
+            onExerciseChange();
+        }
+
+        function renderExerciseManagement() {
+            const container = document.getElementById('exerciseManagementList');
+            container.innerHTML = '';
+            state.exercises.forEach((ex, index) => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                div.innerHTML = `
+                    <span><strong>${ex}</strong></span>
+                    <div style="display:flex; gap:4px;">
+                        <button class="btn btn-secondary btn-small" onclick="moveExercise(${index}, -1)">↑</button>
+                        <button class="btn btn-secondary btn-small" onclick="moveExercise(${index}, 1)">↓</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteExercise('${ex}')">削除</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function addExercise() {
+            const nameInput = document.getElementById('newExerciseName');
+            const name = nameInput.value.trim();
+            if (!name) return;
+            if (state.exercises.includes(name)) {
+                alert('既に登録されている種目です。');
+                return;
+            }
+            state.exercises.push(name);
+            nameInput.value = '';
+            saveToStorage();
+            initExercises();
+        }
+
+        function moveExercise(index, direction) {
+            const newIndex = index + direction;
+            if (newIndex < 0 || newIndex >= state.exercises.length) return;
+            const temp = state.exercises[index];
+            state.exercises[index] = state.exercises[newIndex];
+            state.exercises[newIndex] = temp;
+            saveToStorage();
+            initExercises();
+        }
+
+        function deleteExercise(name) {
+            if (!confirm(`「${name}」を削除しますか？`)) return;
+            state.exercises = state.exercises.filter(ex => ex !== name);
+            saveToStorage();
+            initExercises();
+        }
+
+        // --- 記録入力関連 ---
+        function onExerciseChange() {
+            const selectedEx = document.getElementById('exerciseSelect').value;
+            const lastInfoBox = document.getElementById('lastRecordInfo');
+            
+            // 該当種目の過去記録を検索
+            const exRecords = state.records
+                .filter(r => r.exercise === selectedEx)
+                .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            if (exRecords.length > 0) {
+                const last = exRecords[0];
+                lastInfoBox.style.display = 'block';
+                document.getElementById('lastRecordText').innerText = `${last.weight}kg × ${last.reps}回 (1RM: ${last.rm1.toFixed(1)}kg)`;
+                
+                // 経過日数の計算
+                const lastDate = new Date(last.date);
+                const today = new Date();
+                const diffTime = Math.abs(today - lastDate);
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                document.getElementById('elapsedDaysText').innerText = `${diffDays}日前 (${last.date})`;
+
+                // 前回値を自動で引き継ぎ初期値にする
+                document.getElementById('weightInput').value = last.weight;
+                document.getElementById('repsInput').value = last.reps;
+            } else {
+                lastInfoBox.style.display = 'none';
+                document.getElementById('weightInput').value = '';
+                document.getElementById('repsInput').value = '';
+            }
+            calculateRealtime();
+        }
+
+        function calculateRealtime() {
+            const weight = parseFloat(document.getElementById('weightInput').value) || 0;
+            const reps = parseInt(document.getElementById('repsInput').value) || 0;
+
+            let rm1 = 0;
+            let volume = 0;
+
+            if (weight > 0 && reps > 0) {
+                // ご提示いただいた公式: 重量 * (1 + ((回数 - 1) / 30))
+                rm1 = weight * (1 + ((reps - 1) / 30));
+                volume = weight * reps;
+            }
+
+            document.getElementById('realtime1RM').innerText = rm1.toFixed(1) + " kg";
+            document.getElementById('realtimeVolume').innerText = volume.toLocaleString() + " kg";
+        }
+
+        function addSetRecord() {
+            const date = document.getElementById('workoutDate').value;
+            const exercise = document.getElementById('exerciseSelect').value;
+            const weight = parseFloat(document.getElementById('weightInput').value);
+            const reps = parseInt(document.getElementById('repsInput').value);
+
+            if (!date || !exercise || isNaN(weight) || isNaN(reps) || weight <= 0 || reps <= 0) {
+                alert('正しい重量と回数を入力してください。');
+                return;
+            }
+
+            const rm1 = weight * (1 + ((reps - 1) / 30));
+            const volume = weight * reps;
+
+            const newRecord = {
+                id: Date.now().toString(),
+                date,
+                exercise,
+                weight,
+                reps,
+                volume,
+                rm1
+            };
+
+            state.records.push(newRecord);
+            saveToStorage();
+            renderInputPage();
+            renderHistory();
+            alert('セットを記録しました！');
+        }
+
+        function renderInputPage() {
+            const today = document.getElementById('workoutDate').value;
+            const todayList = document.getElementById('todayList');
+            const todayRecords = state.records.filter(r => r.date === today);
+
+            document.getElementById('todayCount').innerText = todayRecords.length;
+
+            if (todayRecords.length === 0) {
+                todayList.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 12px;">本日の記録はまだありません</p>';
+                return;
+            }
+
+            todayList.innerHTML = '';
+            todayRecords.forEach(r => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                div.innerHTML = `
+                    <div class="history-info">
+                        <strong>${r.exercise}</strong>
+                        <div>${r.weight}kg × ${r.reps}回 (V: ${r.volume}kg)</div>
+                    </div>
+                    <button class="btn btn-danger btn-small" onclick="deleteRecord('${r.id}')">削除</button>
+                `;
+                todayList.appendChild(div);
+            });
+        }
+
+        // --- 履歴・編集関連 ---
+        function renderHistory() {
+            const filterEx = document.getElementById('filterExercise').value;
+            const historyList = document.getElementById('historyList');
+            
+            let filtered = state.records.sort((a, b) => new Date(b.date) - new Date(a.date));
+            if (filterEx !== 'all') {
+                filtered = filtered.filter(r => r.exercise === filterEx);
+            }
+
+            if (filtered.length === 0) {
+                historyList.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 12px;">履歴がありません</p>';
+                return;
+            }
+
+            historyList.innerHTML = '';
+            filtered.forEach(r => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                div.innerHTML = `
+                    <div class="history-info">
+                        <div>${r.date} | <strong>${r.exercise}</strong></div>
+                        <strong>${r.weight}kg × ${r.reps}回</strong> (1RM: ${r.rm1.toFixed(1)}kg / V: ${r.volume}kg)
+                    </div>
+                    <button class="btn btn-danger btn-small" onclick="deleteRecord('${r.id}')">削除</button>
+                `;
+                historyList.appendChild(div);
+            });
+        }
+
+        function deleteRecord(id) {
+            if (!confirm('この記録を削除しますか？')) return;
+            state.records = state.records.filter(r => r.id !== id);
+            saveToStorage();
+            renderInputPage();
+            renderHistory();
+            updateCharts();
+        }
+
+        // --- グラフ分析関連 ---
+        function updateCharts() {
+            const targetEx = document.getElementById('chartExerciseSelect').value;
+            
+            // 1RMチャート更新
+            const exRecords = state.records
+                .filter(r => r.exercise === targetEx)
+                .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            const labels = exRecords.map(r => r.date);
+            const rmData = exRecords.map(r => r.rm1);
+
+            const ctxRM = document.getElementById('rmChart').getContext('2d');
+            if (rmChartInstance) rmChartInstance.destroy();
+
+            rmChartInstance = new Chart(ctxRM, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: targetEx + ' 1RM (kg)',
+                        data: rmData,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { grid: { color: '#2c2c2c' }, ticks: { color: '#a0a0a0' } },
+                        x: { grid: { color: '#2c2c2c' }, ticks: { color: '#a0a0a0' } }
+                    }
+                }
+            });
+
+            // 週別ボリュームチャート更新
+            updateVolumeChart();
+        }
+
+        function updateVolumeChart() {
+            // 週ごとにボリュームを集計
+            const weeklyMap = {};
+            state.records.forEach(r => {
+                const d = new Date(r.date);
+                // 週の開始日（月曜日基準など）を算出
+                const day = d.getDay();
+                const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+                const weekStart = new Date(d.setDate(diff)).toISOString().split('T')[0];
+
+                weeklyMap[weekStart] = (weeklyMap[weekStart] || 0) + r.volume;
+            });
+
+            const sortedWeeks = Object.keys(weeklyMap).sort();
+            const volumeData = sortedWeeks.map(w => weeklyMap[w]);
+
+            const ctxVol = document.getElementById('volumeChart').getContext('2d');
+            if (volumeChartInstance) volumeChartInstance.destroy();
+
+            volumeChartInstance = new Chart(ctxVol, {
+                type: 'bar',
+                data: {
+                    labels: sortedWeeks,
+                    datasets: [{
+                        label: '総筋ボリューム (kg)',
+                        data: volumeData,
+                        backgroundColor: '#10b981',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { grid: { color: '#2c2c2c' }, ticks: { color: '#a0a0a0' } },
+                        x: { grid: { color: '#2c2c2c' }, ticks: { color: '#a0a0a0' } }
+                    }
+                }
+            });
+
+            // 現実的な目標値の提示（直近週のボリューム＋約2.5%〜5%アップ、または維持目安）
+            if (volumeData.length > 0) {
+                const lastVol = volumeData[volumeData.length - 1];
+                const suggestedTarget = Math.round(lastVol * 1.03); // +3%の現実的プログレッシブターゲット
+                document.getElementById('targetVolumeText').innerText = `${suggestedTarget.toLocaleString()} kg (先週比 +3%)`;
+            } else {
+                document.getElementById('targetVolumeText').innerText = "データが蓄積されると算出されます";
+            }
+        }
+
+        // --- バックアップ・エクスポート関連 ---
+        function exportJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
+            const dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", dataStr);
+            dlAnchor.setAttribute("download", "muscle_volume_backup_" + new Date().toISOString().split('T')[0] + ".json");
+            document.body.appendChild(dlAnchor);
+            dlAnchor.click();
+            dlAnchor.remove();
+        }
+
+        function exportCSV() {
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // Excel対応BOM付き
+            csvContent += "ID,日付,種目,重量(kg),回数,ボリューム(kg),予測1RM(kg)\n";
+
+            state.records.forEach(r => {
+                csvContent += `"${r.id}","${r.date}","${r.exercise}",${r.weight},${r.reps},${r.volume},${r.rm1.toFixed(2)}\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", encodedUri);
+            dlAnchor.setAttribute("download", "muscle_volume_export_" + new Date().toISOString().split('T')[0] + ".csv");
+            document.body.appendChild(dlAnchor);
+            dlAnchor.click();
+            dlAnchor.remove();
+        }
+
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (imported && imported.exercises && imported.records) {
+                        state = imported;
+                        saveToStorage();
+                        initExercises();
+                        renderInputPage();
+                        renderHistory();
+                        updateCharts();
+                        alert('データを正常に復元しました！');
+                    } else {
+                        alert('無効なバックアップファイルです。');
+                    }
+                } catch (err) {
+                    alert('ファイルの読み込みに失敗しました: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+    </script>
+</body>
+</html>
